@@ -167,7 +167,7 @@ class Character:
         self.height = height
 
     def add_calories(self, calories):
-        self.current_calories += calories
+        self.calories += calories
 
     def set_eye_color(self, eye_color):
         self.eye_color = eye_color
@@ -215,7 +215,7 @@ class Character:
         return 655 + (4.35 * self.weight) + (4.7 * self.height) - (4.7 * self.age)
 
     def calculate_fullness(self):
-        fullness_percentage = (self.current_calories / self.max_calories) * 100
+        fullness_percentage = (self.calories / self.max_calories) * 100
         thresholds = [20, 40, 60, 80, 100]
         for i, threshold in enumerate(thresholds):
             if fullness_percentage < threshold:
@@ -343,19 +343,19 @@ class Time:
     def end_day(self):
         self.current_date += datetime.timedelta(days=1)
         self.day += 1
-        excess_calories = character.current_calories - character.calculate_bmr()
+        excess_calories = self.character.get_calories() - self.character.calculate_bmr()
         if excess_calories > 500:
-            character.weight += int(excess_calories / 500)
-            character.weight_diff += int(excess_calories / 500) # Add 1 lb for every excess of 500 calories
-        if self.current_date.month == self.birthday.month and self.current_date.day == self.birthday.day:
-            character.age += 1
-        character.calories = 0
-        dimensions = character.predict_body_dimensions(character.weight)
-        character.chest = dimensions['Chest']
-        character.waist = dimensions['Waist']
-        character.hips = dimensions['Hips']
-        character.clothing = character.get_clothing_size()
-        character.max_calories = character.calculate_bmr()
+            self.character.weight += int(excess_calories / 500)
+            self.character.weight_diff += int(excess_calories / 500) # Add 1 lb for every excess of 500 calories
+        if self.current_date.month == self.birth_date.month and self.current_date.day == self.birth_date.day:
+            self.character.age += 1
+        self.character.calories = 0
+        dimensions = self.character.predict_body_dimensions()
+        self.character.chest = dimensions['Chest']
+        self.character.waist = dimensions['Waist']
+        self.character.hips = dimensions['Hips']
+        self.character.clothing = self.character.get_clothing_size()
+        self.character.max_calories = self.character.calculate_bmr()
         self.mind.change_mood()
 
 

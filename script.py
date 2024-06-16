@@ -1,6 +1,7 @@
 # script.py
 import os
 import sys
+import re
 import gradio as gr
 # Find the path to the 'modules' directory relative to the current file
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -92,7 +93,7 @@ def chat_input_modifier(text, visible_text, state):
     end_day_message = []
     if end_day_called:
         time.end_day()
-        if ch.current_date.month == 4 and ch.current_date.day == 16:
+        if time.current_date.month == 4 and time.current_date.day == 16:
             end_day_message.append(
                 f"\n*It's the start of a new day... And it's {ch.name}'s birthday! You are now {ch.age}!*\n")
         else:
@@ -114,7 +115,7 @@ def chat_input_modifier(text, visible_text, state):
 
     if food_messages:
         text += "\n".join(food_messages)
-        visible_text += "\n".join(food_message)
+        visible_text += "\n".join(food_messages)
 
 
     return text, visible_text
