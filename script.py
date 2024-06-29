@@ -238,7 +238,7 @@ def ui():
             ch.set_face(face)
         if smile:
             ch.set_smile(smile)
-        return f"Character features updated: {ch.get_name()}", "", "", "", "", ""
+        return f"Character features updated: {ch.get_name()}", "", "", "", "", "", ""
 
     def update_appearance(eye_color, hair, skin):
         if eye_color:
