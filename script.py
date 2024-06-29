@@ -228,7 +228,7 @@ def ui():
     def update_features(nose, eyes, lips, cheeks, face, smile):
         if nose:
             ch.set_nose(nose)
-        if eye:
+        if eyes:
             ch.set_eyes(eyes)
         if lips:
             ch.set_lips(lips)
