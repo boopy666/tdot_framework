@@ -568,6 +568,9 @@ class Character:
 
     def set_nose(self, nose):
         self.nose = nose
+        
+    def set_eyes(self, eyes):
+        self.eye_shape = eyes
 
     def set_lips(self, lips):
         self.lips = lips
@@ -705,12 +708,11 @@ class Character:
 
 class Time:
 
-    def __init__(self, character, birth_day, birth_month):
-        today = datetime.date.today()
-        self.current_date = datetime.datetime(today.year, today.month, today.day)
+    def __init__(self, character, birth_day, birth_month, current_year, current_month, current_day):
+        self.current_date = datetime.datetime(current_year, current_month, current_day)
         self.day = 0
         self.character = character
-        self.birth_date = datetime.datetime((self.current_date.year - character.age), birth_month, birth_day)
+        self.birth_date = datetime.datetime(self.get_birth_year(), birth_month, birth_day)
         self.mind = Mind()
 
     def get_current_date(self):
@@ -728,11 +730,25 @@ class Time:
     def get_formatted_birth_date(self):
         return self.birth_date.strftime("%B %d, %Y")
 
-    def set_current_date(self, new_day, new_month, new_year):
+    def set_current_date(self, new_year, new_month, new_day):
         self.current_date = datetime.datetime(new_year, new_month, new_day)
 
-    def set_birth_date(self, new_day, new_month):
-        self.birth_date = datetime.datetime((self.get_current_date.year - character.age), new_month, new_day)
+    def get_birth_year(self):
+        return self.current_date.year - self.character.age
+
+    def set_birth_date(self, new_month, new_day):
+        try:
+            # Validate the inputs
+            if not (1 <= new_month <= 12):
+                raise ValueError(f"Invalid month: {new_month}")
+            if not (1 <= new_day <= 31):  # Basic validation, more checks needed for specific months
+                raise ValueError(f"Invalid day: {new_day}")
+
+            # Create the new birth_date
+            self.birth_date = datetime.datetime(self.get_birth_year(), new_month, new_day)
+            print(f"Birth date set to: {self.birth_date}")  # Debugging statement
+        except Exception as e:
+            print(f"Error setting birth date: {e}")
 
     def set_day(self, num):
         self.day += num

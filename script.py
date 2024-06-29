@@ -28,7 +28,7 @@ from chat import generate_chat_prompt
 
 # Class calls
 ch = Character("Maddy", 19, 230, 62)
-time = Time(ch, birth_day=6, birth_month=5)
+time = Time(ch, birth_day=6, birth_month=5, current_year=2024, current_month=6, current_day=20)
 mind = Mind()
 relationship = Relationship()
 desc = Description(ch)
@@ -37,12 +37,6 @@ desc = Description(ch)
 params = {
     "display_name": "tdot_framework",
     "is_tab": False
-}
-
-tts_params = {
-    "api_key": "",
-    "is_active": False,
-    "last_response_chunks": []
 }
 
 # Global variables to store slider values
@@ -65,7 +59,6 @@ Obesity("BMI: {ch.calculate_bmi()}" + "Class: {ch.calculate_bmi_class()}")
 Features("{ch.hair} hair" + "{ch.eye_color} eyes" + "{ch.skin} skin tone" + "{ch.nose}" + "{ch.eye_shape}" + "{ch.lips}" + "{ch.cheeks}" + "{ch.face}" + "{ch.smile}")
 Height("{ch.calculate_height_cm()} cm" + "{int(height[0])} feet {height[1]} inches tall")
 Body("Chest size {int(ch.get_chest())} inches around" + "Waist size {int(ch.get_waist())} inches around" + "Hips size {int(ch.get_hips())} inches around")
-Clothing("Wears size {ch.get_clothing_size()} clothing")
 Mind({mind.formatted_mind_traits()})
 Personality({mind.formatted_personality_traits()})
 Mood("{mind.get_mood()}")
@@ -78,11 +71,42 @@ Description({desc.formatted_all()})
 
     return string_block1
 
+def get_user_name(state):
+    user_name = state['name1']
+    return user_name
 
 # Define the state modifier function
 def state_modifier(state):
 
-    ch.set_username(state['name1'])
+    if len(state['history']['internal']) == 1:
+        weight_match = re.search(r'weight==(\d+)', state['context'])
+        age_match = re.search(r'age==(\d+)', state['context'])
+        height_match = re.search(r'height==(\d+)', state['context'])
+        date_match = re.search(r'date==(\d{4}-\d{2}-\d{2})', state['context'])
+        birth_match = re.search(r'birth==(\d{2}-\d{2})', state['context'])
+
+        if weight_match:
+            ch.set_weight(int(weight_match.group(1)))
+            state['context'] = re.sub(r'weight==\d+', '', state['context'])
+            state['context'] = state['context'].replace(weight_match.group(0), "").strip()
+        if age_match:
+            ch.set_age(int(age_match.group(1)))
+            state['context'] = re.sub(r'age==\d+', '', state['context'])
+            state['context'] = state['context'].replace(age_match.group(0), "").strip()
+        if height_match:
+            ch.set_height(int(height_match.group(1)))
+            state['context'] = re.sub(r'height=\d+', '', state['context'])
+            state['context'] = state['context'].replace(height_match.group(0), "").strip()
+        if date_match:
+            time.set_current_date(date_match.group(1), date_match.group(2), date_match.group(3))
+            state['context'] = re.sub(r'date==\d{4}-\d{2}-\d{2}', '', state['context'])
+            state['context'] = state['context'].replace(date_match.group(0), "").strip()
+        if birth_match:
+            time.set_birth_date(birth_match.group(1), birth_match.group(2))
+            state['context'] = re.sub(r'birth==(\d{2}-\d{2})', state['context'])
+            state['context'] = state['context'].replace(birth_match.group(0), "").strip()
+
+    ch.set_username(get_user_name(state))
 
     update_state_values(state)
 
@@ -92,9 +116,9 @@ def state_modifier(state):
 
     return state
 
-def get_user_name(state):
-    user_name = state['name1']
-    return user_name
+
+
+
 
 # Define a function to update the state values based on slider inputs
 def update_state_values(state):
@@ -115,12 +139,38 @@ def chat_input_modifier(text, visible_text, state):
     food_matches = re.findall(r"\{([^}]+):(\d+)\}", text)
     end_day_called = "==END_DAY==" in text
     relationship.calculate_sentiment_score(text)
+    weight_match = re.search(r'weight==(\d+)', text)
+    age_match = re.search(r'age==(\d+)', text)
+    height_match = re.search(r'height==(\d+)', text)
+    date_match = re.search(r'date==(\d{4}-\d{2}-\d{2})', text)
+    birth_match = re.search(r'birth==(\d{2}-\d{2})', text)
+
+    if weight_match:
+        ch.set_weight(int(weight_match.group(1)))
+        text = re.sub(r'weight==\d+', '', text)
+        text = text.replace(weight_match.group(0), "").strip()
+    if age_match:
+        ch.set_age(int(age_match.group(1)))
+        text = re.sub(r'age==\d+', '', text)
+        text = text.replace(age_match.group(0), "").strip()
+    if height_match:
+        ch.set_height(int(height_match.group(1)))
+        text = re.sub(r'height=\d+', '', text)
+        text = text.replace(height_match.group(0), "").strip()
+    if date_match:
+        time.set_current_date(date_match.group(1))
+        text = re.sub(r'date==\d{4}-\d{2}-\d{2}', '', text)
+        text = text.replace(date_match.group(0), "").strip()
+    if birth_match:
+        time.set_birth_date(birth_match.group(1))
+        text = re.sub(r'birth==(\d{2}-\d{2})', text)
+        text = text.replace(birth_match.group(0), "").strip()
 
     # Process end day command
     end_day_message = []
     if end_day_called:
         time.end_day()
-        if time.current_date.month == 4 and time.current_date.day == 16:
+        if time.current_date.month == time.get_birth_date.month and time.current_date.day == time.get_birth_date.day:
             end_day_message.append(
                 f"\n*It's the start of a new day... And it's {ch.name}'s birthday! You are now {ch.age}!*\n")
         else:
@@ -147,6 +197,7 @@ def chat_input_modifier(text, visible_text, state):
 
     return text, visible_text
 
+
 def output_modifier(string, state, is_chat=True):
     """
     Modifies the LLM output before it gets presented.
@@ -158,12 +209,6 @@ def output_modifier(string, state, is_chat=True):
         relationship.calculate_sentiment_score(string)
 
     return string
-
-
-
-
-
-
 
 
 def ui():
@@ -180,9 +225,11 @@ def ui():
             ch.set_height(height)
         return f"Character updated: {ch.get_name()}", "", "", "", ""
 
-    def update_features(nose, lips, cheeks, face, smile):
+    def update_features(nose, eyes, lips, cheeks, face, smile):
         if nose:
             ch.set_nose(nose)
+        if eye:
+            ch.set_eyes(eyes)
         if lips:
             ch.set_lips(lips)
         if cheeks:
@@ -213,7 +260,7 @@ def ui():
 
     def toggle_visibility(activate_stats):
         update = gr.update(visible=activate_stats)
-        return update, update, update, update, update, update, update, update, update, update, update, update, update, update, update
+        return update, update, update, update, update, update, update, update, update, update, update, update, update, update, update, update
 
     def toggle_time_visibility(activate_stats):
         update = gr.update(visible=activate_stats)
@@ -237,6 +284,7 @@ def ui():
                 with gr.Column():
                     eye_color_input = gr.Dropdown(label="Eye Color", choices=Character.EYE_COLORS)
                     nose_input = gr.Dropdown(label="Nose", choices=[feature for d in Character.FACIAL_FEATURES if d["type"] == "Nose" for feature in d["features"]])
+                    eye_input = gr.Dropdown(label="Eye Shape", choices=[feature for d in Character.FACIAL_FEATURES if d["type"] == "Eyes" for feature in d["features"]])
                     lips_input = gr.Dropdown(label="Lips", choices=[feature for d in Character.FACIAL_FEATURES if d["type"] == "Lips" for feature in d["features"]])
                     cheeks_input = gr.Dropdown(label="Cheeks", choices=[feature for d in Character.FACIAL_FEATURES if d["type"] == "Cheeks" for feature in d["features"]])
                     face_input = gr.Dropdown(label="Face", choices=[feature for d in Character.FACIAL_FEATURES if d["type"] == "Face" for feature in d["features"]])
@@ -255,8 +303,8 @@ def ui():
                 inputs=character_activate,
                 outputs=[
                     name_input, age_input, weight_input, height_input, update_character_button,
-                    eye_color_input, nose_input, lips_input, cheeks_input, face_input, smile_input, update_features_button,
-                    skin_input, hair_input, update_appearance_button
+                    eye_color_input, nose_input, eye_input, lips_input, cheeks_input, face_input, smile_input,
+                    update_features_button, skin_input, hair_input, update_appearance_button
                 ]
             )
 
@@ -268,8 +316,8 @@ def ui():
 
             update_features_button.click(
                 fn=update_features,
-                inputs=[nose_input, lips_input, cheeks_input, face_input, smile_input],
-                outputs=[features_output, nose_input, lips_input, cheeks_input, face_input, smile_input]
+                inputs=[nose_input, eye_input, lips_input, cheeks_input, face_input, smile_input],
+                outputs=[features_output, nose_input, eye_input, lips_input, cheeks_input, face_input, smile_input]
             )
 
             update_appearance_button.click(
