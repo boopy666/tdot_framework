@@ -216,13 +216,13 @@ def ui():
 
     def update_character(name, age, weight, height):
         if name:
-            ch.set_name(name)
+            ch.set_name(str(name))
         if age:
-            ch.set_age(age)
+            ch.set_age(int(age))
         if weight:
-            ch.set_weight(weight)
+            ch.set_weight(int(weight))
         if height:
-            ch.set_height(height)
+            ch.set_height(int(height))
         return f"Character updated: {ch.get_name()}", "", "", "", ""
 
     def update_features(nose, eyes, lips, cheeks, face, smile):
