@@ -77,7 +77,6 @@ def get_user_name(state):
 
 # Define the state modifier function
 def state_modifier(state):
-
     if len(state['history']['internal']) == 1:
         weight_match = re.search(r'weight==(\d+)', state['context'])
         age_match = re.search(r'age==(\d+)', state['context'])
@@ -87,33 +86,47 @@ def state_modifier(state):
 
         if weight_match:
             ch.set_weight(int(weight_match.group(1)))
-            state['context'] = re.sub(r'weight==\d+', '', state['context'])
-            state['context'] = state['context'].replace(weight_match.group(0), "").strip()
+            new_context = re.sub(r'weight==\d+', '', state['context'])
+            if new_context:
+                state['context'] = new_context.strip()
+            else:
+                state['context'] = ''
+
         if age_match:
             ch.set_age(int(age_match.group(1)))
-            state['context'] = re.sub(r'age==\d+', '', state['context'])
-            state['context'] = state['context'].replace(age_match.group(0), "").strip()
+            new_context = re.sub(r'age==\d+', '', state['context'])
+            if new_context:
+                state['context'] = new_context.strip()
+            else:
+                state['context'] = ''
+
         if height_match:
             ch.set_height(int(height_match.group(1)))
-            state['context'] = re.sub(r'height=\d+', '', state['context'])
-            state['context'] = state['context'].replace(height_match.group(0), "").strip()
+            new_context = re.sub(r'height=\d+', '', state['context'])
+            if new_context:
+                state['context'] = new_context.strip()
+            else:
+                state['context'] = ''
+
         if date_match:
             time.set_current_date(date_match.group(1), date_match.group(2), date_match.group(3))
-            state['context'] = re.sub(r'date==\d{4}-\d{2}-\d{2}', '', state['context'])
-            state['context'] = state['context'].replace(date_match.group(0), "").strip()
+            new_context = re.sub(r'date==\d{4}-\d{2}-\d{2}', '', state['context'])
+            if new_context:
+                state['context'] = new_context.strip()
+            else:
+                state['context'] = ''
+
         if birth_match:
             time.set_birth_date(birth_match.group(1), birth_match.group(2))
-            state['context'] = re.sub(r'birth==(\d{2}-\d{2})', state['context'])
-            state['context'] = state['context'].replace(birth_match.group(0), "").strip()
+            new_context = re.sub(r'birth==(\d{2}-\d{2})', '', state['context'])
+            if new_context:
+                state['context'] = new_context.strip()
+            else:
+                state['context'] = ''
 
     ch.set_username(get_user_name(state))
-
     update_state_values(state)
-
     state['context'] = generate_context_prompt(state['name2'], state['name1']) + "\n" + state['context']
-
-    print(state['context'])
-
     return state
 
 
