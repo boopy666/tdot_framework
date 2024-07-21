@@ -681,7 +681,7 @@ class Character:
 
         # Return the predicted body dimensions and clothing size
         return {
-            'Bust': final_bust,
+            'Chest': final_bust,
             'Waist': final_waist,
             'Hips': final_hips,
             'Clothing Size': clothing_size
