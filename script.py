@@ -170,7 +170,7 @@ def chat_input_modifier(text, visible_text, state):
     end_day_message = []
     if end_day_called:
         time.end_day()
-        if time.current_date.month == time.birth_month and time.current_date.day == time.birth_day:
+        if time.current_month == time.birth_month and time.current_day == time.birth_day:
             end_day_message.append(
                 f"\n*It's the start of a new day... And it's {ch.name}'s birthday! You are now {ch.age}!*\n")
         else:

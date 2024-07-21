@@ -709,6 +709,9 @@ class Character:
 class Time:
 
     def __init__(self, character, birth_day, birth_month, current_year, current_month, current_day):
+        self.current_year = current_year
+        self.current_month = current_month
+        self.current_day = current_day
         self.current_date = datetime.datetime(current_year, current_month, current_day)
         self.day = 0
         self.character = character
@@ -763,7 +766,7 @@ class Time:
         if excess_calories > 500:
             self.character.weight += int(excess_calories / 500)
             self.character.weight_diff += int(excess_calories / 500) # Add 1 lb for every excess of 500 calories
-        if self.current_date.month == self.birth_month and self.current_date.day == self.birth_day:
+        if self.current_month == self.birth_month and self.current_day == self.birth_day:
             self.character.age += 1
         self.character.calories = 0
         dimensions = self.character.predict_body_dimensions()
