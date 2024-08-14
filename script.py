@@ -107,6 +107,7 @@ def state_modifier(state):
     ch.set_username(get_user_name(state))
     update_state_values(state)
     state['context'] = generate_context_prompt(state['name2'], state['name1']) + "\n" + state['context']
+    print(state['context'])
     return state
 
 
