@@ -58,7 +58,6 @@ Weight("{ch.get_weight()} lbs")
 Obesity("BMI: {ch.calculate_bmi()}" + "Class: {ch.calculate_bmi_class()}")
 Features("{ch.hair} hair" + "{ch.eye_color} eyes" + "{ch.skin} skin tone" + "{ch.nose}" + "{ch.eye_shape}" + "{ch.lips}" + "{ch.cheeks}" + "{ch.face}" + "{ch.smile}")
 Height("{ch.calculate_height_cm()} cm" + "{int(height[0])} feet {height[1]} inches tall")
-Body("Chest size {int(ch.get_chest())} inches around" + "Waist size {int(ch.get_waist())} inches around" + "Hips size {int(ch.get_hips())} inches around")
 Mind({mind.formatted_mind_traits()})
 Personality({mind.formatted_personality_traits()})
 Mood("{mind.get_mood()}")
@@ -66,9 +65,7 @@ Relationship("Relationship status with {user} is: {relationship.calculate_relati
 Loves({mind.formatted_loves()})
 Hates({mind.formatted_hates()})
 Time("Today's date is {time.get_formatted_current_date()}" + "{name}'s birthday is {time.get_formatted_birth_date()}" + "In {time.get_day()} days {name} has gained {ch.get_weight_diff()} lbs")
-Description({desc.formatted_all()})
-}}]"""
-
+Description("Introverted yet yearning to break out of her shell and be accepted." + "Passionate video game geek with an encyclopedic knowledge of gaming trivia." + "Follows pop culture and social media trends to stay connected and relevant." + "Kindhearted but socially awkward, often misreading signals from her peers." + "Struggles with low self-esteem, body image issues, and bouts of anxiety.")
     return string_block1
 
 def get_user_name(state):
