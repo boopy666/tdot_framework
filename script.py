@@ -66,6 +66,7 @@ Loves({mind.formatted_loves()})
 Hates({mind.formatted_hates()})
 Time("Today's date is {time.get_formatted_current_date()}" + "{name}'s birthday is {time.get_formatted_birth_date()}" + "In {time.get_day()} days {name} has gained {ch.get_weight_diff()} lbs")
 Description("Introverted yet yearning to break out of her shell and be accepted." + "Passionate video game geek with an encyclopedic knowledge of gaming trivia." + "Follows pop culture and social media trends to stay connected and relevant." + "Kindhearted but socially awkward, often misreading signals from her peers." + "Struggles with low self-esteem, body image issues, and bouts of anxiety.")
+}}]"""
     return string_block1
 
 def get_user_name(state):
