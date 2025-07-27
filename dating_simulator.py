@@ -11,8 +11,10 @@ import json
 import requests
 import random
 import datetime
+import time
 from typing import Dict, Any, List
-from classes import Character, Time, Mind, Relationship, Description
+from classes import Character, Time, Mind, Relationship, Description, simple_emotion_classifier
+from memory_system import ConversationalMemorySystem, MemoryCategories
 
 class LMStudioAPI:
     """Interface for LM Studio API"""
@@ -72,14 +74,41 @@ class DatingSimulator:
         self.relationship = Relationship()
         self.description = Description(self.character)
         
+        # Initialize advanced memory system
+        self.memory_system = ConversationalMemorySystem(max_memories=1000, refinement_interval=25)
+        
         # Game state
         self.conversation_history = []
         self.user_name = "Player"
         self.game_running = True
         
-    def generate_context_prompt(self) -> str:
-        """Generate the character context prompt for the LLM"""
+    def generate_context_prompt(self, user_input: str = "") -> str:
+        """Generate the character context prompt for the LLM with memory integration"""
         height = self.character.calculate_height_feet()
+        
+        # Get relevant memories for context
+        relevant_memories = []
+        if user_input:
+            relevant_memories = self.memory_system.retrieve_relevant_memories(
+                user_input, 
+                context=f"Current conversation with {self.user_name}",
+                max_memories=3
+            )
+        
+        # Build memory context
+        memory_context = ""
+        if relevant_memories:
+            memory_context = "\n\nRelevant memories and personality traits:\n"
+            for memory in relevant_memories:
+                memory_context += f"- {memory.content}\n"
+        
+        # Get character summary for personality consistency
+        character_summary = self.memory_system.get_character_summary()
+        
+        # Build personality traits from memory
+        personality_from_memory = ""
+        if character_summary['personality_traits']:
+            personality_from_memory = f"\nEstablished personality: {'; '.join(character_summary['personality_traits'][:3])}"
         
         context = f"""[character("{self.character.name}")
 {{
@@ -97,16 +126,17 @@ Loves({self.mind.formatted_loves()})
 Hates({self.mind.formatted_hates()})
 Time("Today's date is {self.time.get_formatted_current_date()}" + "{self.character.name}'s birthday is {self.time.get_formatted_birth_date()}" + "In {self.time.get_day()} days {self.character.name} has gained {self.character.get_weight_diff()} lbs")
 Description("Introverted yet yearning to break out of her shell and be accepted." + "Passionate video game geek with an encyclopedic knowledge of gaming trivia." + "Follows pop culture and social media trends to stay connected and relevant." + "Kindhearted but socially awkward, often misreading signals from her peers." + "Struggles with low self-esteem, body image issues, and bouts of anxiety.")
-}}]
+{personality_from_memory}
+}}]{memory_context}
 
-You are roleplaying as {self.character.name}. Respond as her in first person. Be authentic to her personality, current mood, and relationship status. Show character growth and development over time. React appropriately to food, social situations, and relationship developments.
+You are roleplaying as {self.character.name}. Respond as her in first person. Be authentic to her personality, current mood, and relationship status. Show character growth and development over time. React appropriately to food, social situations, and relationship developments. Remember and reference past conversations and established personality traits.
 
 Current situation: You are spending time with {self.user_name}."""
         
         return context
         
     def process_user_input(self, user_input: str) -> str:
-        """Process user input and return character response"""
+        """Process user input and return character response with memory integration"""
         # Check for special commands
         if user_input.startswith('=='):
             return self.handle_special_command(user_input)
@@ -117,14 +147,18 @@ Current situation: You are spending time with {self.user_name}."""
         # Calculate sentiment for relationship changes
         self.relationship.calculate_sentiment_score(user_input)
         
-        # Generate LLM response
-        context = self.generate_context_prompt()
+        # Determine emotional tone of user input
+        emotion_scores = simple_emotion_classifier(user_input)
+        dominant_emotion = max(emotion_scores, key=emotion_scores.get)
         
-        # Build conversation history for context
+        # Generate LLM response with memory context
+        context = self.generate_context_prompt(user_input)
+        
+        # Build conversation history for context (shorter since we have memory system)
         conversation_context = ""
         if self.conversation_history:
             conversation_context = "\n\nRecent conversation:\n"
-            for exchange in self.conversation_history[-3:]:  # Last 3 exchanges
+            for exchange in self.conversation_history[-2:]:  # Last 2 exchanges only
                 conversation_context += f"{self.user_name}: {exchange['user']}\n{self.character.name}: {exchange['character']}\n"
                 
         full_prompt = f"{context}\n{conversation_context}\n{self.user_name}: {user_input}\n{self.character.name}:"
@@ -133,8 +167,17 @@ Current situation: You are spending time with {self.user_name}."""
         
         # Calculate sentiment for character response
         self.relationship.calculate_sentiment_score(character_response)
+        character_emotion_scores = simple_emotion_classifier(character_response)
+        character_emotion = max(character_emotion_scores, key=character_emotion_scores.get)
         
-        # Add to conversation history
+        # Add conversation turn to memory system
+        self.memory_system.add_conversation_turn(
+            user_input=user_input,
+            character_response=character_response,
+            emotional_tone=character_emotion
+        )
+        
+        # Add to conversation history (keep for backwards compatibility)
         self.conversation_history.append({
             'user': user_input,
             'character': character_response
@@ -179,6 +222,12 @@ Current situation: You are spending time with {self.user_name}."""
             return self.save_game()
         elif command.startswith("==LOAD=="):
             return self.load_game()
+        elif command.startswith("==MEMORY=="):
+            return self.show_memory_stats()
+        elif command.startswith("==MEMORIES=="):
+            return self.show_recent_memories()
+        elif command.startswith("==PERSONALITY=="):
+            return self.show_personality_summary()
         else:
             return "Unknown command. Type ==HELP== for available commands."
             
@@ -245,6 +294,9 @@ Example: "Want some pizza? {{pizza:800}}"
 **Special Commands:**
 • ==END_DAY== - Advance to the next day
 • ==STATS== - Show character statistics  
+• ==MEMORY== - Show memory system statistics
+• ==MEMORIES== - Show recent character memories
+• ==PERSONALITY== - Show personality summary from memories
 • ==HELP== - Show this help message
 • ==SAVE== - Save your game progress
 • ==LOAD== - Load saved game progress
@@ -301,7 +353,10 @@ Have fun exploring your relationship with {character_name}! 💕
             with open('savegame.json', 'w') as f:
                 json.dump(save_data, f, indent=2)
                 
-            return "💾 Game saved successfully!"
+            # Export memory system separately
+            self.memory_system.export_memories('memory_data.json')
+                
+            return "💾 Game and memory data saved successfully!"
             
         except Exception as e:
             return f"❌ Error saving game: {e}"
@@ -353,10 +408,104 @@ Have fun exploring your relationship with {character_name}! 💕
             self.user_name = save_data['user_name']
             self.conversation_history = save_data['conversation_history']
             
-            return "💾 Game loaded successfully!"
+            # Import memory system if available
+            memory_loaded = self.memory_system.import_memories('memory_data.json')
+            if memory_loaded:
+                return "💾 Game and memory data loaded successfully!"
+            else:
+                return "💾 Game loaded successfully! (Memory data not found)"
             
         except Exception as e:
             return f"❌ Error loading game: {e}"
+            
+    def show_memory_stats(self) -> str:
+        """Show comprehensive memory system statistics"""
+        stats = self.memory_system.get_memory_stats()
+        
+        memory_display = f"""🧠 **Memory System Statistics**
+
+📊 **Overview:**
+• Total Memories: {stats['total_memories']}
+• Conversation Turns: {stats['conversation_turns']}
+• Average Importance: {stats['average_importance']:.2f}
+• Recent Memories (24h): {stats['recent_memories']}
+
+📁 **Memories by Category:**"""
+        
+        for category, count in stats['memories_by_category'].items():
+            if count > 0:
+                memory_display += f"\n• {category.title()}: {count}"
+                
+        if stats['most_accessed_memories']:
+            memory_display += f"\n\n🔥 **Most Referenced Memories:**"
+            for i, memory in enumerate(stats['most_accessed_memories'][:3], 1):
+                memory_display += f"\n{i}. {memory[:60]}..."
+                
+        return memory_display
+        
+    def show_recent_memories(self) -> str:
+        """Show recent character memories"""
+        # Get memories from the last 24 hours
+        recent_memories = []
+        current_time = time.time()
+        
+        for memory in self.memory_system.memories.values():
+            if current_time - memory.timestamp < 24 * 3600:  # Last 24 hours
+                recent_memories.append(memory)
+                
+        recent_memories.sort(key=lambda m: m.timestamp, reverse=True)
+        
+        if not recent_memories:
+            return "💭 No recent memories found."
+            
+        memory_display = "💭 **Recent Character Memories (Last 24 Hours):**\n"
+        
+        for i, memory in enumerate(recent_memories[:10], 1):
+            category_emoji = {
+                'personality': '🎭', 'relationship': '❤️', 'preference': '👍',
+                'event': '📝', 'physical': '💪', 'emotional': '😊', 'goal': '🎯'
+            }
+            emoji = category_emoji.get(memory.category, '💭')
+            
+            memory_display += f"\n{i}. {emoji} {memory.content}"
+            if memory.importance > 0.7:
+                memory_display += " ⭐"
+                
+        return memory_display
+        
+    def show_personality_summary(self) -> str:
+        """Show personality summary derived from memories"""
+        summary = self.memory_system.get_character_summary()
+        
+        personality_display = f"🎭 **{self.character.name}'s Personality Summary**\n"
+        
+        if summary['personality_traits']:
+            personality_display += "\n**Core Personality Traits:**"
+            for trait in summary['personality_traits'][:5]:
+                personality_display += f"\n• {trait}"
+                
+        if summary['preferences']['likes']:
+            personality_display += "\n\n**Things She Enjoys:**"
+            for like in summary['preferences']['likes'][:3]:
+                personality_display += f"\n• {like}"
+                
+        if summary['preferences']['dislikes']:
+            personality_display += "\n\n**Things She Dislikes:**"
+            for dislike in summary['preferences']['dislikes'][:3]:
+                personality_display += f"\n• {dislike}"
+                
+        if summary['goals']:
+            personality_display += "\n\n**Goals & Aspirations:**"
+            for goal in summary['goals'][:3]:
+                personality_display += f"\n• {goal}"
+                
+        if summary['emotional_patterns']:
+            personality_display += "\n\n**Recent Emotional Patterns:**"
+            for emotion, count in summary['emotional_patterns'].items():
+                if count > 0:
+                    personality_display += f"\n• {emotion.title()}: {count} times"
+                    
+        return personality_display
             
     def run(self):
         """Main game loop"""
