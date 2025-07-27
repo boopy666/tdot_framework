@@ -1,11 +1,37 @@
 # classes.py
 import datetime
-import numpy as np
 import random
-from sklearn.linear_model import LinearRegression
-from transformers import pipeline
+import math
 
-classifier = pipeline("text-classification",model='bhadresh-savani/distilbert-base-uncased-emotion', return_all_scores=True)
+# Simple emotion detection without external dependencies
+EMOTION_KEYWORDS = {
+    'love': ['love', 'adore', 'cherish', 'treasure', 'heart', 'beautiful', 'gorgeous', 'amazing'],
+    'joy': ['happy', 'joy', 'excited', 'great', 'wonderful', 'awesome', 'fantastic', 'laugh'],
+    'surprise': ['wow', 'surprise', 'unexpected', 'amazing', 'incredible', 'unbelievable'],
+    'sadness': ['sad', 'disappointed', 'upset', 'hurt', 'cry', 'terrible', 'awful'],
+    'fear': ['scared', 'afraid', 'worried', 'nervous', 'anxious', 'terrified'],
+    'anger': ['angry', 'mad', 'furious', 'hate', 'stupid', 'idiot', 'annoying', 'disgusting']
+}
+
+def simple_emotion_classifier(text):
+    """Simple keyword-based emotion classification"""
+    text_lower = text.lower()
+    emotion_scores = {emotion: 0 for emotion in EMOTION_KEYWORDS}
+    
+    for emotion, keywords in EMOTION_KEYWORDS.items():
+        for keyword in keywords:
+            if keyword in text_lower:
+                emotion_scores[emotion] += 1
+    
+    # Normalize scores
+    total_matches = sum(emotion_scores.values())
+    if total_matches > 0:
+        emotion_scores = {k: v/total_matches for k, v in emotion_scores.items()}
+    else:
+        # Default neutral emotion distribution
+        emotion_scores = {emotion: 1/6 for emotion in EMOTION_KEYWORDS}
+    
+    return emotion_scores
 
 
 class Description:
@@ -455,16 +481,6 @@ class Character:
         'Hips': [33.5, 35.5, 39, 43, 47, 52.5, 54.5, 56.5, 58.5, 60.5, 62.5, 64.5, 66.5, 68.5, 70.5, 72.5, 74.5, 76.5,
                  78.5, 80.5]
     }
-    # Example weights corresponding to the sizes
-    weights = np.linspace(90, 300, 20).reshape(-1, 1)  # Assuming weights for sizes from X-Small to 15XL
-    # Initialize a dictionary to store the models
-    models = {}
-    # Perform linear regression for each body measurement
-    for feature in ['Chest', 'Waist', 'Hips']:
-        y = np.array(data[feature])
-        model = LinearRegression()
-        model.fit(weights, y)
-        models[feature] = model
 
     def __init__(self, name, age, weight, height):
         self.name = name
@@ -650,9 +666,9 @@ class Character:
         estimated_hips = base_hips + (bmi_intervals * growth_rate)
 
         # Generate random offsets for each dimension within the specified tolerance
-        bust_offset = np.random.uniform(-1.5, 1.5)
-        waist_offset = np.random.uniform(-1.5, 1.5)
-        hips_offset = np.random.uniform(-1.5, 1.5)
+        bust_offset = random.uniform(-1.5, 1.5)
+        waist_offset = random.uniform(-1.5, 1.5)
+        hips_offset = random.uniform(-1.5, 1.5)
 
         # Apply the random offsets to the estimated dimensions
         final_bust = estimated_bust + bust_offset
@@ -690,18 +706,19 @@ class Character:
 
     def get_clothing_size(self):
         # Calculate the absolute differences between character's dimensions and dataset dimensions
-        chest_diff = np.abs(np.array(self.data['Chest']) - self.chest)
-        waist_diff = np.abs(np.array(self.data['Waist']) - self.waist)
-        hips_diff = np.abs(np.array(self.data['Hips']) - self.hips)
-
-        # Sum the differences for each size to find the closest match
-        total_diff = chest_diff + waist_diff + hips_diff
-
-        # Find the index of the minimum difference
-        closest_index = np.argmin(total_diff)
-
-        # If the closest index is out of range, clamp it to the closest valid index
-        closest_index = max(0, min(closest_index, len(self.data['Size']) - 1))
+        min_diff = float('inf')
+        closest_index = 0
+        
+        for i in range(len(self.data['Size'])):
+            chest_diff = abs(self.data['Chest'][i] - self.chest)
+            waist_diff = abs(self.data['Waist'][i] - self.waist)
+            hips_diff = abs(self.data['Hips'][i] - self.hips)
+            
+            total_diff = chest_diff + waist_diff + hips_diff
+            
+            if total_diff < min_diff:
+                min_diff = total_diff
+                closest_index = i
 
         # Return the corresponding clothing size
         return self.data['Size'][closest_index]
@@ -960,16 +977,7 @@ class Relationship:
         return self.relationship_status
 
     def calculate_sentiment_score(self, string):
-        prediction = classifier(string)
-        # Unpack the emotion scores
-        emotion_scores = {
-            "love": prediction[0][2]["score"],
-            "joy": prediction[0][1]["score"],
-            "surprise": prediction[0][5]["score"],
-            "sadness": prediction[0][0]["score"],
-            "fear": prediction[0][4]["score"],
-            "anger": prediction[0][3]["score"]
-        }
+        emotion_scores = simple_emotion_classifier(string)
 
         # Find the emotion with the highest score
         max_emotion = max(emotion_scores, key=emotion_scores.get)
