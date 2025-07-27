@@ -15,6 +15,7 @@ import time
 from typing import Dict, Any, List
 from classes import Character, Time, Mind, Relationship, Description, simple_emotion_classifier
 from memory_system import ConversationalMemorySystem, MemoryCategories
+from event_system import EventManager, GameEvent, EventType
 
 class LMStudioAPI:
     """Interface for LM Studio API"""
@@ -77,10 +78,14 @@ class DatingSimulator:
         # Initialize advanced memory system
         self.memory_system = ConversationalMemorySystem(max_memories=1000, refinement_interval=25)
         
+        # Initialize event system
+        self.event_manager = EventManager(self.character, self.time, self.relationship, self.mind)
+        
         # Game state
         self.conversation_history = []
         self.user_name = "Player"
         self.game_running = True
+        self.pending_event = None
         
     def generate_context_prompt(self, user_input: str = "") -> str:
         """Generate the character context prompt for the LLM with memory integration"""
@@ -110,7 +115,14 @@ class DatingSimulator:
         if character_summary['personality_traits']:
             personality_from_memory = f"\nEstablished personality: {'; '.join(character_summary['personality_traits'][:3])}"
         
-        context = f"""[character("{self.character.name}")
+        # Add event context if there's a pending event
+        event_context = ""
+        if self.pending_event:
+            event_prompt = random.choice(self.pending_event.prompts)
+            event_context = f"\n\nCurrent situation: {event_prompt}"
+            
+        # Add environmental enhancement
+        base_context = f"""[character("{self.character.name}")
 {{
 Species("Human")
 Age("{self.character.get_age()} years old")
@@ -131,9 +143,12 @@ Description("Introverted yet yearning to break out of her shell and be accepted.
 
 You are roleplaying as {self.character.name}. Respond as her in first person. Be authentic to her personality, current mood, and relationship status. Show character growth and development over time. React appropriately to food, social situations, and relationship developments. Remember and reference past conversations and established personality traits.
 
-Current situation: You are spending time with {self.user_name}."""
+Current situation: You are spending time with {self.user_name}.{event_context}"""
         
-        return context
+        # Apply random environmental enhancement
+        enhanced_context = self.event_manager.get_random_prompt_enhancement(base_context)
+        
+        return enhanced_context
         
     def process_user_input(self, user_input: str) -> str:
         """Process user input and return character response with memory integration"""
@@ -177,17 +192,43 @@ Current situation: You are spending time with {self.user_name}."""
             emotional_tone=character_emotion
         )
         
+        # Update event system and check for new events
+        triggered_event = self.event_manager.update(
+            conversation_context=character_response,
+            user_input=user_input,
+            character_response=character_response
+        )
+        
+        # Handle event triggers
+        event_response = ""
+        if triggered_event:
+            self.pending_event = triggered_event
+            event_response = f"\n\n🎭 *{triggered_event.description}*"
+            
+            # Show user suggestions if available
+            if triggered_event.user_suggestions:
+                suggestions = triggered_event.user_suggestions
+                event_response += "\n\n💡 *You could say:*"
+                for i, suggestion in enumerate(suggestions[:3], 1):
+                    event_response += f"\n{i}. \"{suggestion}\""
+        
+        # Clear pending event if user responded to it
+        if self.pending_event and user_input:
+            self.pending_event = None
+            
         # Add to conversation history (keep for backwards compatibility)
         self.conversation_history.append({
             'user': user_input,
             'character': character_response
         })
         
-        # Combine food response with character response
+        # Combine all responses
         full_response = ""
         if food_response:
             full_response += food_response + "\n\n"
         full_response += character_response
+        if event_response:
+            full_response += event_response
         
         return full_response
         
@@ -228,6 +269,10 @@ Current situation: You are spending time with {self.user_name}."""
             return self.show_recent_memories()
         elif command.startswith("==PERSONALITY=="):
             return self.show_personality_summary()
+        elif command.startswith("==EVENTS=="):
+            return self.show_event_status()
+        elif command.startswith("==SUGGESTIONS=="):
+            return self.show_scene_suggestions()
         else:
             return "Unknown command. Type ==HELP== for available commands."
             
@@ -297,6 +342,8 @@ Example: "Want some pizza? {{pizza:800}}"
 • ==MEMORY== - Show memory system statistics
 • ==MEMORIES== - Show recent character memories
 • ==PERSONALITY== - Show personality summary from memories
+• ==EVENTS== - Show active events and event history
+• ==SUGGESTIONS== - Get scene suggestions for interaction
 • ==HELP== - Show this help message
 • ==SAVE== - Save your game progress
 • ==LOAD== - Load saved game progress
@@ -355,8 +402,11 @@ Have fun exploring your relationship with {character_name}! 💕
                 
             # Export memory system separately
             self.memory_system.export_memories('memory_data.json')
+            
+            # Export event system
+            self.event_manager.export_events('events_data.json')
                 
-            return "💾 Game and memory data saved successfully!"
+            return "💾 Game, memory, and event data saved successfully!"
             
         except Exception as e:
             return f"❌ Error saving game: {e}"
@@ -410,10 +460,18 @@ Have fun exploring your relationship with {character_name}! 💕
             
             # Import memory system if available
             memory_loaded = self.memory_system.import_memories('memory_data.json')
-            if memory_loaded:
-                return "💾 Game and memory data loaded successfully!"
+            
+            # Import event system if available
+            events_loaded = self.event_manager.import_events('events_data.json')
+            
+            if memory_loaded and events_loaded:
+                return "💾 Game, memory, and event data loaded successfully!"
+            elif memory_loaded:
+                return "💾 Game and memory data loaded successfully! (Events data not found)"
+            elif events_loaded:
+                return "💾 Game and event data loaded successfully! (Memory data not found)"
             else:
-                return "💾 Game loaded successfully! (Memory data not found)"
+                return "💾 Game loaded successfully! (Memory and event data not found)"
             
         except Exception as e:
             return f"❌ Error loading game: {e}"
@@ -506,6 +564,53 @@ Have fun exploring your relationship with {character_name}! 💕
                     personality_display += f"\n• {emotion.title()}: {count} times"
                     
         return personality_display
+        
+    def show_event_status(self) -> str:
+        """Show current event status and recent event history"""
+        event_display = "🎭 **Event System Status**\n"
+        
+        # Show pending event
+        if self.pending_event:
+            event_display += f"\n🔥 **Active Event:** {self.pending_event.name}"
+            event_display += f"\n📝 {self.pending_event.description}"
+            event_display += f"\n⏱️ Duration remaining: {self.pending_event.duration} turns"
+        else:
+            event_display += "\n✨ No active events"
+            
+        # Show scene momentum
+        momentum_desc = "Low" if self.event_manager.scene_momentum < 0.3 else "Medium" if self.event_manager.scene_momentum < 0.7 else "High"
+        event_display += f"\n⚡ Scene Energy: {momentum_desc} ({self.event_manager.scene_momentum:.1f})"
+        
+        # Show recent event history
+        history_summary = self.event_manager.get_event_history_summary()
+        if "No recent events" not in history_summary:
+            event_display += f"\n\n📚 **{history_summary}**"
+            
+        # Show conversation state
+        silence_count = self.event_manager.conversation_silence_count
+        if silence_count > 0:
+            event_display += f"\n🤐 Conversation lull detected ({silence_count} turns)"
+            
+        return event_display
+        
+    def show_scene_suggestions(self) -> str:
+        """Show AI-generated suggestions for scene direction"""
+        suggestions = self.event_manager.get_scene_suggestions()
+        
+        suggestion_display = "💡 **Scene Direction Suggestions**\n"
+        suggestion_display += "\nBased on current relationship and mood:\n"
+        
+        for i, suggestion in enumerate(suggestions, 1):
+            suggestion_display += f"\n{i}. {suggestion}"
+            
+        # Add context about current state
+        game_state = self.event_manager._get_current_game_state()
+        suggestion_display += f"\n\n📊 **Current Context:**"
+        suggestion_display += f"\n• Relationship Level: {game_state['relationship_score']:.1f}/10"
+        suggestion_display += f"\n• Current Mood: {game_state['current_mood']}"
+        suggestion_display += f"\n• Scene Energy: {game_state['scene_momentum']:.1f}/1.0"
+        
+        return suggestion_display
             
     def run(self):
         """Main game loop"""

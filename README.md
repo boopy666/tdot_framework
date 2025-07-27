@@ -19,10 +19,17 @@ A CLI-based dating simulator powered by LM Studio API featuring character progre
 - Relationship status tracking
 - Save/load game functionality
 
+🎮 **Advanced AI Features**
+- Intelligent memory system with RAG capabilities
+- Dynamic event system with structured randomness
+- Automated prompt enhancement for immersive scenes
+- Character personality development through conversation
+
 🎮 **CLI Interface**
 - Simple text-based commands
 - Special game commands for day progression
 - Statistics and help system
+- Event management and scene suggestions
 
 ## Requirements
 
@@ -69,6 +76,11 @@ This offers pizza with 800 calories. The character's weight and body measurement
 
 - `==END_DAY==` - Advance to the next day (processes weight gain)
 - `==STATS==` - Show detailed character statistics
+- `==MEMORY==` - Show memory system statistics
+- `==MEMORIES==` - Show recent character memories  
+- `==PERSONALITY==` - Show personality summary from memories
+- `==EVENTS==` - Show active events and event history
+- `==SUGGESTIONS==` - Get scene suggestions for interaction
 - `==HELP==` - Display help information
 - `==SAVE==` - Save your current game progress
 - `==LOAD==` - Load previously saved game
@@ -91,6 +103,18 @@ This offers pizza with 800 calories. The character's weight and body measurement
 - Use `==END_DAY==` to advance time
 - Character mood changes daily
 - Birthday events trigger age progression
+
+**Memory System:**
+- AI remembers personality traits, preferences, and events
+- Conversations build consistent character development
+- RAG system retrieves relevant memories for context
+- Automatic memory refinement removes redundant data
+
+**Event System:**
+- Dynamic events trigger based on context and timing
+- Structured randomness keeps interactions fresh
+- Events provide prompts and suggested responses
+- Scene momentum affects event probability
 
 ## Character Information
 
@@ -161,8 +185,13 @@ Edit `classes.py` to customize:
 1. **Be Consistent**: Stay in character for better immersion
 2. **Experiment with Food**: Different foods affect mood and weight differently  
 3. **Pay Attention to Stats**: Check `==STATS==` regularly to track progress
-4. **Save Often**: Use `==SAVE==` before major decisions
-5. **Character Development**: Watch how personality evolves over time
+4. **Use Memory Commands**: Check `==MEMORIES==` and `==PERSONALITY==` to see character development
+5. **Follow Event Cues**: When events trigger, use the suggested responses or create your own
+6. **Monitor Scene Energy**: Use `==EVENTS==` to see current momentum and active events
+7. **Get AI Suggestions**: Use `==SUGGESTIONS==` when you're unsure how to proceed
+8. **Save Often**: Use `==SAVE==` before major decisions
+9. **Character Development**: Watch how personality evolves through the memory system
+10. **Embrace Randomness**: Let the event system create natural conversation opportunities
 
 ## Contributing
 
